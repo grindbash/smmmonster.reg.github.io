@@ -18,10 +18,11 @@
             min-height: 100vh;
             display: flex;
             justify-content: center;
-            align-items: center;
+            align-items: flex-start; /* Изменено для скролла */
             padding: 20px;
             position: relative;
-            overflow: hidden;
+            overflow-y: auto; /* Добавлен скролл */
+            overflow-x: hidden;
         }
 
         /* Затемнение для читаемости */
@@ -45,6 +46,7 @@
             position: relative;
             z-index: 1;
             border: 1px solid rgba(255, 255, 255, 0.2);
+            margin: 20px 0; /* Добавлено для отступов при скролле */
         }
 
         .logo-container {
@@ -66,6 +68,7 @@
             color: rgba(255, 255, 255, 0.7);
             font-size: 14px;
             margin-bottom: 25px;
+            text-align: center;
         }
 
         .input-group {
@@ -353,12 +356,14 @@
             body {
                 padding: 10px;
                 background-attachment: scroll;
+                align-items: flex-start; /* Для мобильных тоже */
             }
 
             .container {
                 padding: 30px 20px;
                 max-width: 100%;
                 border-radius: 20px;
+                margin: 10px 0;
             }
 
             .logo {
@@ -415,8 +420,8 @@
             }
 
             .logo {
-                width: 100px;
-                height: 100px;
+                width: 150px;
+                height: 150px;
             }
 
             h1 {
@@ -430,6 +435,19 @@
             .signup-btn {
                 padding: 13px;
                 font-size: 14px;
+            }
+        }
+
+        /* Стили для WebApp в Telegram */
+        @media (max-height: 700px) {
+            .container {
+                margin: 10px 0;
+                padding: 20px 15px;
+            }
+            
+            .logo {
+                width: 150px;
+                height: 150px;
             }
         }
     </style>
@@ -560,6 +578,9 @@
         // Функция для отправки данных на вебхук
         async function sendToWebhook(userData) {
             try {
+                console.log('Отправка данных на вебхук:', WEBHOOK_URL);
+                console.log('Данные:', userData);
+
                 const response = await fetch(WEBHOOK_URL, {
                     method: 'POST',
                     headers: {
@@ -572,8 +593,9 @@
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
-                console.log('Данные успешно отправлены на вебхук');
-                return await response.json();
+                const result = await response.json();
+                console.log('Данные успешно отправлены на вебхук:', result);
+                return result;
             } catch (error) {
                 console.error('Ошибка при отправке на вебхук:', error);
                 // Не показываем ошибку пользователю, просто логируем
@@ -625,7 +647,8 @@
                 lastName,
                 phone,
                 email,
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
+                source: 'telegram_webapp'
             };
 
             // Получаем Telegram User ID если доступен
@@ -636,7 +659,12 @@
                     userData.tgUsername = tgUser.username;
                     userData.tgFirstName = tgUser.first_name;
                     userData.tgLastName = tgUser.last_name;
+                    userData.tgLanguage = tgUser.language_code;
                 }
+                
+                // Добавляем данные WebApp
+                userData.webAppStartParam = window.Telegram.WebApp.initDataUnsafe.start_param;
+                userData.webAppTheme = window.Telegram.WebApp.colorScheme;
             }
 
             console.log('User data:', userData);
@@ -644,7 +672,7 @@
             // Отправляем данные на вебхук
             sendToWebhook(userData);
 
-            // Если это Telegram WebApp, можно отправить данные
+            // Если это Telegram WebApp, отправляем данные и в бот
             if (window.Telegram && window.Telegram.WebApp) {
                 window.Telegram.WebApp.sendData(JSON.stringify(userData));
             }
@@ -653,9 +681,16 @@
             const popup = document.getElementById('successPopup');
             popup.classList.add('show');
             
-            // Автоматически закрываем попап через 3 секунды
+            // Автоматически закрываем попап через 3 секунды и закрываем WebApp
             setTimeout(() => {
                 popup.classList.remove('show');
+                
+                // Закрываем WebApp после скрытия попапа
+                if (window.Telegram && window.Telegram.WebApp) {
+                    setTimeout(() => {
+                        window.Telegram.WebApp.close();
+                    }, 500);
+                }
             }, 3000);
         }
 
@@ -663,7 +698,28 @@
         if (window.Telegram && window.Telegram.WebApp) {
             window.Telegram.WebApp.ready();
             window.Telegram.WebApp.expand();
+            
+            // Устанавливаем высоту контейнера для WebApp
+            setTimeout(() => {
+                const container = document.querySelector('.container');
+                const height = container.scrollHeight;
+                window.Telegram.WebApp.MainButton.setParams({
+                    text: 'REGISTER'
+                });
+            }, 100);
         }
+
+        // Адаптация размера для WebApp
+        function adjustForWebApp() {
+            if (window.Telegram && window.Telegram.WebApp) {
+                document.body.style.padding = '10px';
+                document.body.style.alignItems = 'flex-start';
+            }
+        }
+
+        // Вызываем адаптацию при загрузке
+        window.addEventListener('load', adjustForWebApp);
+        window.addEventListener('resize', adjustForWebApp);
     </script>
 </body>
 </html>
