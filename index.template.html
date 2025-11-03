@@ -765,15 +765,6 @@
         const urlParams = getTelegramUrlParams();
         console.log('URL params:', urlParams);
         
-        // Автозаполнение полей из Telegram данных если доступно
-        if (telegramData.tgFirstName && !document.getElementById('firstName').value) {
-            document.getElementById('firstName').value = telegramData.tgFirstName;
-        }
-        
-        if (telegramData.tgLastName && !document.getElementById('lastName').value) {
-            document.getElementById('lastName').value = telegramData.tgLastName;
-        }
-        
         // Адаптация для WebApp
         if (telegramData.isTelegram) {
             document.body.style.padding = '10px';
