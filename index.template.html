@@ -443,211 +443,138 @@
 
     const WEBHOOK_URL = getWebhookUrl();
 
-    // Расширенная функция обнаружения Telegram
-    function detectTelegramEnvironment() {
+    // Улучшенная функция обнаружения Telegram и получения данных
+    function getTelegramUserData() {
         console.log('=== TELEGRAM DETECTION START ===');
         
-        // Метод 1: Официальный Telegram WebApp API
-        if (window.Telegram?.WebApp) {
-            console.log('✅ OFFICIAL Telegram WebApp API DETECTED');
-            console.log('WebApp version:', window.Telegram.WebApp.version);
-            console.log('Platform:', window.Telegram.WebApp.platform);
-            console.log('InitData available:', !!window.Telegram.WebApp.initData);
-            console.log('InitDataUnsafe:', window.Telegram.WebApp.initDataUnsafe);
+        // Метод 1: Парсинг данных из URL (самый надежный для Telegram Desktop)
+        const urlHash = window.location.hash.slice(1);
+        console.log('URL Hash:', urlHash);
+        
+        if (urlHash.includes('tgWebAppData=')) {
+            console.log('✅ Telegram WebApp data found in URL');
             
-            return {
-                isTelegram: true,
-                source: 'official_webapp_api',
-                webApp: window.Telegram.WebApp
-            };
-        }
-        
-        // Метод 2: Telegram Webview Proxy
-        if (typeof window.TelegramWebviewProxy !== 'undefined') {
-            console.log('✅ Telegram Webview Proxy DETECTED');
-            return {
-                isTelegram: true,
-                source: 'webview_proxy',
-                proxy: window.TelegramWebviewProxy
-            };
-        }
-        
-        // Метод 3: Детальный анализ User Agent
-        const ua = navigator.userAgent;
-        console.log('User Agent:', ua);
-        
-        const telegramIndicators = [
-            'Telegram',
-            'WebView',
-            'tgios',
-            'tdesktop',
-            'android.webview'
-        ];
-        
-        for (const indicator of telegramIndicators) {
-            if (ua.toLowerCase().includes(indicator.toLowerCase())) {
-                console.log(`✅ Telegram detected by User Agent: ${indicator}`);
-                return {
-                    isTelegram: true,
-                    source: 'user_agent_' + indicator,
-                    userAgent: ua
-                };
-            }
-        }
-        
-        // Метод 4: Проверка наличия Telegram-специфичных объектов
-        if (window.external && typeof window.external.notify === 'function') {
-            console.log('✅ Telegram external notify detected');
-            return {
-                isTelegram: true,
-                source: 'external_notify'
-            };
-        }
-        
-        // Метод 5: Проверка URL параметров
-        const urlParams = new URLSearchParams(window.location.search);
-        const hashParams = new URLSearchParams(window.location.hash.slice(1));
-        
-        const telegramParams = [
-            'tgWebAppPlatform',
-            'tgWebAppVersion', 
-            'tgWebAppThemeParams',
-            'tgShareScoreUrl'
-        ];
-        
-        for (const param of telegramParams) {
-            if (urlParams.get(param) || hashParams.get(param)) {
-                console.log(`✅ Telegram detected by URL parameter: ${param}`);
-                return {
-                    isTelegram: true,
-                    source: 'url_parameter_' + param
-                };
-            }
-        }
-        
-        console.log('❌ NO Telegram indicators found');
-        console.log('=== TELEGRAM DETECTION END ===');
-        return {
-            isTelegram: false,
-            source: 'not_telegram'
-        };
-    }
-
-    // Функция получения данных пользователя
-    function getTelegramUserData() {
-        const env = detectTelegramEnvironment();
-        console.log('Environment detection result:', env);
-        
-        if (!env.isTelegram) {
-            return {
-                isTelegram: false,
-                tgid: null,
-                tgUsername: null,
-                tgFirstName: null,
-                tgLastName: null,
-                platform: 'not_telegram',
-                detectionSource: env.source
-            };
-        }
-        
-        // Если есть официальный WebApp API
-        if (env.webApp) {
-            console.log('🔄 Attempting to get user data from WebApp API');
-            
-            const initData = env.webApp.initDataUnsafe;
-            console.log('initDataUnsafe content:', initData);
-            
-            // Основной способ
-            if (initData?.user?.id) {
-                console.log('✅ SUCCESS: User data found in initDataUnsafe.user');
-                return {
-                    isTelegram: true,
-                    tgid: initData.user.id,
-                    tgUsername: initData.user.username || null,
-                    tgFirstName: initData.user.first_name || null,
-                    tgLastName: initData.user.last_name || null,
-                    tgLanguage: initData.user.language_code || null,
-                    platform: 'telegram_webapp',
-                    detectionSource: env.source,
-                    webAppTheme: env.webApp.colorScheme,
-                    webAppPlatform: env.webApp.platform,
-                    webAppVersion: env.webApp.version
-                };
-            }
-            
-            // Попытка парсинга initData строки
-            if (env.webApp.initData) {
-                console.log('🔧 Attempting to parse initData string');
-                try {
-                    const params = new URLSearchParams(env.webApp.initData);
-                    const paramObj = Object.fromEntries(params);
-                    console.log('All initData parameters:', paramObj);
+            try {
+                // Парсим параметры из хэша
+                const hashParams = new URLSearchParams(urlHash);
+                const webAppData = hashParams.get('tgWebAppData');
+                
+                if (webAppData) {
+                    console.log('tgWebAppData found:', webAppData);
                     
-                    const userParam = params.get('user');
+                    // Парсим tgWebAppData
+                    const dataParams = new URLSearchParams(webAppData);
+                    const userParam = dataParams.get('user');
+                    
                     if (userParam) {
                         console.log('User parameter found:', userParam);
                         const userData = JSON.parse(decodeURIComponent(userParam));
                         console.log('Parsed user data:', userData);
                         
                         if (userData.id) {
-                            console.log('✅ SUCCESS: User data parsed from initData string');
+                            console.log('✅ SUCCESS: User data extracted from URL');
                             return {
                                 isTelegram: true,
                                 tgid: userData.id,
                                 tgUsername: userData.username || null,
                                 tgFirstName: userData.first_name || null,
                                 tgLastName: userData.last_name || null,
-                                platform: 'telegram_webapp_parsed',
-                                detectionSource: env.source
+                                tgLanguage: userData.language_code || null,
+                                platform: 'telegram_desktop',
+                                detectionSource: 'url_hash',
+                                photoUrl: userData.photo_url || null,
+                                allowsWriteToPm: userData.allows_write_to_pm || false
                             };
                         }
                     }
-                    
-                    // Проверяем другие параметры
-                    const queryId = params.get('query_id');
-                    const authDate = params.get('auth_date');
-                    const hash = params.get('hash');
-                    
-                    console.log('Other important params:', {
-                        query_id: queryId,
-                        auth_date: authDate,
-                        hash: hash ? 'present' : 'missing'
-                    });
-                    
-                } catch (e) {
-                    console.log('❌ ERROR parsing initData:', e);
                 }
-            } else {
-                console.log('❌ initData string not available');
+            } catch (e) {
+                console.log('❌ Error parsing URL data:', e);
             }
+        }
+        
+        // Метод 2: Официальный Telegram WebApp API
+        if (window.Telegram?.WebApp) {
+            console.log('✅ Official Telegram WebApp API detected');
             
-            console.log('⚠️ WebApp API available but user data not accessible');
+            const initData = window.Telegram.WebApp.initDataUnsafe;
+            console.log('initDataUnsafe:', initData);
+            
+            if (initData?.user?.id) {
+                console.log('✅ User data found in WebApp API');
+                return {
+                    isTelegram: true,
+                    tgid: initData.user.id,
+                    tgUsername: initData.user.username || null,
+                    tgFirstName: initData.user.first_name || null,
+                    tgLastName: initData.user.last_name || null,
+                    platform: 'telegram_webapp',
+                    detectionSource: 'webapp_api'
+                };
+            }
+        }
+        
+        // Метод 3: Telegram Webview Proxy
+        if (typeof window.TelegramWebviewProxy !== 'undefined') {
+            console.log('✅ Telegram Webview Proxy detected');
             return {
                 isTelegram: true,
                 tgid: null,
                 tgUsername: null,
                 tgFirstName: null,
                 tgLastName: null,
-                platform: 'telegram_webapp_no_data',
-                detectionSource: env.source,
-                webAppTheme: env.webApp.colorScheme,
-                webAppPlatform: env.webApp.platform,
-                webAppVersion: env.webApp.version
+                platform: 'telegram_desktop',
+                detectionSource: 'webview_proxy',
+                note: 'Webview proxy available but user data needs URL parsing'
             };
         }
         
-        // Для других методов обнаружения Telegram
-        console.log('ℹ️ Telegram environment detected but no WebApp API access');
+        console.log('❌ No Telegram user data available');
         return {
-            isTelegram: true,
+            isTelegram: false,
             tgid: null,
             tgUsername: null,
             tgFirstName: null,
             tgLastName: null,
-            platform: 'telegram_limited_access',
-            detectionSource: env.source,
-            userAgent: navigator.userAgent
+            platform: 'not_telegram',
+            detectionSource: 'none'
         };
+    }
+
+    // Функция для извлечения всех Telegram параметров из URL
+    function getTelegramUrlParams() {
+        const result = {};
+        try {
+            const hashParams = new URLSearchParams(window.location.hash.slice(1));
+            
+            // Основные параметры
+            result.tgWebAppVersion = hashParams.get('tgWebAppVersion');
+            result.tgWebAppPlatform = hashParams.get('tgWebAppPlatform');
+            
+            // Парсим theme params
+            const themeParams = hashParams.get('tgWebAppThemeParams');
+            if (themeParams) {
+                result.themeParams = JSON.parse(decodeURIComponent(themeParams));
+            }
+            
+            // Парсим WebApp data
+            const webAppData = hashParams.get('tgWebAppData');
+            if (webAppData) {
+                const dataParams = new URLSearchParams(webAppData);
+                result.queryId = dataParams.get('query_id');
+                result.authDate = dataParams.get('auth_date');
+                result.hash = dataParams.get('hash');
+                
+                const userParam = dataParams.get('user');
+                if (userParam) {
+                    result.user = JSON.parse(decodeURIComponent(userParam));
+                }
+            }
+            
+        } catch (e) {
+            console.log('Error parsing URL params:', e);
+        }
+        return result;
     }
 
     // Форматирование телефона
@@ -753,14 +680,11 @@
         console.log('=== FORM SUBMISSION START ===');
         
         const telegramData = getTelegramUserData();
-        console.log('Final Telegram data:', telegramData);
+        console.log('Telegram data:', telegramData);
         
-        // Дополнительная диагностика
-        console.log('Window properties:', {
-            Telegram: !!window.Telegram,
-            TelegramWebviewProxy: !!window.TelegramWebviewProxy,
-            location: window.location.href
-        });
+        // Получаем все параметры из URL для диагностики
+        const urlParams = getTelegramUrlParams();
+        console.log('URL parameters:', urlParams);
 
         const firstName = document.getElementById('firstName').value.trim();
         const lastName = document.getElementById('lastName').value.trim();
@@ -797,34 +721,28 @@
             return;
         }
 
-        // Формируем данные
+        // Формируем данные для отправки
         const userData = {
             firstName,
             lastName,
             phone,
             email,
             timestamp: new Date().toISOString(),
-            source: 'telegram_webapp_form',
-            userAgent: navigator.userAgent,
-            url: window.location.href,
-            // Добавляем диагностическую информацию
-            diagnostic: {
-                hasTelegramObject: !!window.Telegram,
-                hasWebviewProxy: !!window.TelegramWebviewProxy,
-                windowLocation: window.location.href
+            source: 'telegram_webapp',
+            // Добавляем полную информацию о Telegram
+            telegram: {
+                ...telegramData,
+                urlParams: urlParams
             }
         };
 
-        // Добавляем Telegram данные
-        Object.assign(userData, telegramData);
-
-        console.log('📝 Final submission data:', userData);
+        console.log('📝 Final data for webhook:', userData);
         console.log('=== FORM SUBMISSION END ===');
 
         // Отправляем на вебхук
         sendToWebhook(userData);
 
-        // Отправляем в Telegram Bot если доступно
+        // Пытаемся отправить в Telegram Bot если доступно
         if (window.Telegram && window.Telegram.WebApp) {
             try {
                 window.Telegram.WebApp.sendData(JSON.stringify(userData));
@@ -844,17 +762,16 @@
         const telegramData = getTelegramUserData();
         console.log('Initial Telegram detection:', telegramData);
         
-        if (telegramData.isTelegram && window.Telegram?.WebApp) {
-            console.log('✅ Initializing Telegram WebApp...');
-            setTimeout(() => {
-                try {
-                    window.Telegram.WebApp.ready();
-                    window.Telegram.WebApp.expand();
-                    console.log('✅ Telegram WebApp initialized and expanded');
-                } catch (e) {
-                    console.log('❌ Error initializing WebApp:', e);
-                }
-            }, 100);
+        const urlParams = getTelegramUrlParams();
+        console.log('URL params:', urlParams);
+        
+        // Автозаполнение полей из Telegram данных если доступно
+        if (telegramData.tgFirstName && !document.getElementById('firstName').value) {
+            document.getElementById('firstName').value = telegramData.tgFirstName;
+        }
+        
+        if (telegramData.tgLastName && !document.getElementById('lastName').value) {
+            document.getElementById('lastName').value = telegramData.tgLastName;
         }
         
         // Адаптация для WebApp
@@ -866,12 +783,12 @@
 
     document.addEventListener('DOMContentLoaded', init);
 
-    // Дополнительная диагностика через 3 секунды
+    // Дополнительная диагностика
     setTimeout(() => {
-        console.log('🕒 Delayed Telegram detection check:');
+        console.log('🕒 Final Telegram check:');
         const finalData = getTelegramUserData();
-        console.log('Delayed check result:', finalData);
-    }, 3000);
+        console.log('Final result:', finalData);
+    }, 2000);
 </script>
 </body>
 </html>
